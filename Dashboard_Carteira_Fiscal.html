@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Gestão de Carteira</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{--dark-blue:#1B3A6B;--med-blue:#2E5FA3;--light-blue:#4A90D9;--teal:#00B4D8;--green:#2DC653;--red:#E63946;--orange:#F4A261;--bg:#F0F4FA;--border:#E2E8F0;--text:#2d3748;--text-light:#718096}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text)}
+  #loading-screen{position:fixed;inset:0;background:var(--dark-blue);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+  #loading-screen.hidden{opacity:0;pointer-events:none}
+  .loader-logo{color:#fff;font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:24px}
+  .loader-bar-wrap{width:280px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
+  .loader-bar{height:100%;background:var(--teal);border-radius:2px;animation:loadprogress 1.8s ease-in-out forwards}
+  @keyframes loadprogress{0%{width:0%}60%{width:70%}100%{width:100%}}
+  .loader-txt{color:rgba(255,255,255,.5);font-size:12px;margin-top:14px}
+  #error-banner{display:none;background:#E63946;color:#fff;padding:12px 32px;font-size:13px;text-align:center}
+  .header{background:linear-gradient(135deg,var(--dark-blue),var(--med-blue));padding:22px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+  .header h1{color:#fff;font-size:20px;font-weight:700;letter-spacing:.5px}
+  .header p{color:rgba(255,255,255,.7);font-size:12px;margin-top:3px}
+  .header-right{color:rgba(255,255,255,.6);font-size:12px;text-align:right}
+  .tabs{background:var(--dark-blue);padding:0 32px;display:flex;gap:4px;border-top:1px solid rgba(255,255,255,.1)}
+  .tab-btn{padding:11px 20px;cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,.6);font-size:13px;font-weight:500;border-bottom:3px solid transparent;transition:all .2s;font-family:inherit}
+  .tab-btn:hover{color:#fff;background:rgba(255,255,255,.05)}
+  .tab-btn.active{color:var(--teal);border-bottom-color:var(--teal)}
+  .filters{background:#fff;padding:12px 32px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+  .filter-label{font-size:11px;color:var(--text-light);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .filter-select{padding:7px 11px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--bg);cursor:pointer;font-family:inherit;outline:none}
+  .filter-select:focus{border-color:var(--med-blue)}
+  .btn-reset{padding:7px 14px;background:var(--med-blue);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-reset:hover{background:var(--dark-blue)}
+  .filter-count{margin-left:auto;font-size:13px;color:var(--text-light)}
+  .filter-count span{font-weight:700;color:var(--med-blue)}
+  main{padding:22px 32px}
+  .tab-content{display:none}
+  .tab-content.active{display:block}
+  .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:20px}
+  .kpi-card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid transparent;transition:transform .2s,box-shadow .2s}
+  .kpi-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.1)}
+  .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-light);font-weight:700;margin-bottom:7px}
+  .kpi-value{font-size:30px;font-weight:800;margin-bottom:3px}
+  .kpi-sub{font-size:11px;color:var(--text-light)}
+  .kpi-blue{border-left-color:var(--dark-blue)}.kpi-blue .kpi-value{color:var(--dark-blue)}
+  .kpi-green{border-left-color:var(--green)}.kpi-green .kpi-value{color:var(--green)}
+  .kpi-red{border-left-color:var(--red)}.kpi-red .kpi-value{color:var(--red)}
+  .kpi-teal{border-left-color:var(--teal)}.kpi-teal .kpi-value{color:var(--teal)}
+  .kpi-orange{border-left-color:var(--orange)}.kpi-orange .kpi-value{color:var(--orange)}
+  .kpi-purple{border-left-color:#7B2D8B}.kpi-purple .kpi-value{color:#7B2D8B}
+  .charts-row{display:grid;gap:14px;margin-bottom:20px}
+  .charts-3{grid-template-columns:1fr 1fr 1fr}
+  .charts-2{grid-template-columns:1fr 1fr}
+  .chart-card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .chart-card h3{font-size:12px;font-weight:700;color:var(--dark-blue);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;padding-bottom:9px;border-bottom:2px solid var(--bg)}
+  .chart-canvas-wrap{position:relative;height:210px}
+  .table-card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;margin-bottom:18px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead tr.th-labels th{background:var(--dark-blue);color:#fff;padding:10px 10px 6px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;cursor:pointer;user-select:none}
+  thead tr.th-labels th:hover{background:var(--med-blue)}
+  thead tr.th-labels th .sort-icon{opacity:.5;font-size:10px;margin-left:3px}
+  thead tr.th-labels th.sorted .sort-icon{opacity:1;color:var(--teal)}
+  thead tr.th-filters th{background:#1a3a6e;padding:4px 6px 7px}
+  thead tr.th-filters th .col-filter{width:100%;padding:4px 7px;border:1px solid rgba(255,255,255,.2);border-radius:5px;background:rgba(255,255,255,.1);color:#fff;font-size:11px;font-family:inherit;outline:none}
+  thead tr.th-filters th .col-filter::placeholder{color:rgba(255,255,255,.45);font-size:10px}
+  thead tr.th-filters th .col-filter:focus{background:rgba(255,255,255,.2);border-color:var(--teal)}
+  .col-filter-clear{display:inline-flex;align-items:center;gap:6px;margin:8px 0 4px;padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text-light);cursor:pointer;font-family:inherit}
+  .col-filter-clear:hover{background:var(--bg);color:var(--red)}
+  tbody tr:nth-child(even){background:#F8FAFD}
+  tbody tr:hover{background:#EDF4FB}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge-sim{background:#C8F7DC;color:#1A7A3E}
+  .badge-nao{background:#FDDCDC;color:#A31515}
+  .badge-sn{background:#D4EDDA;color:#1A7A3E}
+  .badge-lp{background:#D1ECF1;color:#0C5460}
+  .badge-lr{background:#FFF3CD;color:#856404}
+  .badge-scp{background:#E2D9F3;color:#4A235A}
+  .badge-assoc{background:#F8D7DA;color:#721C24}
+  .badge-mei{background:#FDEBD0;color:#7D4200}
+  .table-toolbar{padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .table-search{padding:7px 11px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:200px;outline:none;font-family:inherit}
+  .table-search:focus{border-color:var(--med-blue)}
+  .table-count{font-size:12px;color:var(--text-light);white-space:nowrap}
+  .pagination{display:flex;justify-content:center;align-items:center;gap:6px;padding:12px}
+  .page-btn{padding:5px 11px;border:1px solid var(--border);background:#fff;cursor:pointer;border-radius:6px;font-size:13px;font-family:inherit}
+  .page-btn:hover{background:var(--bg)}
+  .page-btn.active{background:var(--med-blue);color:#fff;border-color:var(--med-blue)}
+  .page-btn:disabled{opacity:.4;cursor:default}
+  .page-info{font-size:12px;color:var(--text-light)}
+  .colab-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:20px}
+  .colab-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:4px solid transparent;cursor:pointer;transition:transform .2s,box-shadow .2s}
+  .colab-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
+  .colab-card.selected{box-shadow:0 0 0 3px var(--teal),0 8px 20px rgba(0,0,0,.12)}
+  .colab-name{font-size:12px;font-weight:700;color:var(--dark-blue);margin-bottom:8px}
+  .colab-total{font-size:26px;font-weight:800;margin-bottom:2px}
+  .colab-stats{display:flex;gap:7px;margin-top:9px}
+  .colab-stat{flex:1;text-align:center;padding:5px;border-radius:6px}
+  .stat-n{font-size:15px;font-weight:700}
+  .stat-l{font-size:10px;color:var(--text-light);font-weight:600}
+  .progress-wrap{height:5px;background:var(--border);border-radius:3px;margin-top:5px}
+  .progress-bar{height:100%;border-radius:3px;transition:width .5s ease}
+  .grupo-item{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)}
+  .grupo-item:last-child{border-bottom:none}
+  .grupo-rank{width:22px;height:22px;background:var(--dark-blue);color:#fff;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .grupo-name{flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grupo-count{font-size:13px;font-weight:700;color:var(--med-blue);width:28px;text-align:right}
+  .last-updated{font-size:11px;color:rgba(255,255,255,.5)}
+  @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.colab-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:800px){.charts-2,.charts-3{grid-template-columns:1fr}main{padding:14px}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loader-logo">🏢 IZZI CONTÁBIL</div>
+  <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+  <div class="loader-txt">Carregando carteira de clientes...</div>
+</div>
+<div id="error-banner"></div>
+
+<div class="header">
+  <div>
+    <h1>🏢 GESTÃO DE CARTEIRA DE CLIENTES</h1>
+    <p>Painel interativo — filtre, explore e acompanhe sua carteira em tempo real</p>
+  </div>
+  <div class="header-right">
+    Base: <strong id="header-total" style="color:#fff">—</strong> empresas<br>
+    <span class="last-updated" id="last-updated-txt"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('overview',this)">📊 Visão Geral</button>
+  <button class="tab-btn" onclick="showTab('colaboradores',this)">👥 Por Colaborador</button>
+  <button class="tab-btn" onclick="showTab('empresas',this)">🏢 Empresas</button>
+</div>
+
+<div class="filters">
+  <span class="filter-label">Filtros:</span>
+  <select class="filter-select" id="f-responsavel" onchange="applyFilters()"><option value="">Todos os Responsáveis</option></select>
+  <select class="filter-select" id="f-assistente" onchange="applyFilters()"><option value="">Todos os Assistentes</option></select>
+  <select class="filter-select" id="f-regime" onchange="applyFilters()"><option value="">Todos os Regimes</option></select>
+  <select class="filter-select" id="f-movimento" onchange="applyFilters()">
+    <option value="">Com/Sem Movimento</option>
+    <option value="SIM">Com Movimento</option>
+    <option value="NÃO">Sem Movimento</option>
+  </select>
+  <select class="filter-select" id="f-uf" onchange="applyFilters()"><option value="">Todos os Estados</option></select>
+  <select class="filter-select" id="f-tipo" onchange="applyFilters()"><option value="">Todos os Tipos</option></select>
+  <button class="btn-reset" onclick="resetFilters()">✕ Limpar</button>
+  <div class="filter-count">Exibindo <span id="count-display">—</span> empresas</div>
+</div>
+
+<main>
+<div id="tab-overview" class="tab-content active">
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-blue"><div class="kpi-label">Total de Empresas</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub">Carteira ativa</div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-label">Com Movimento</div><div class="kpi-value" id="kpi-com">—</div><div class="kpi-sub" id="kpi-com-pct">—</div></div>
+    <div class="kpi-card kpi-red"><div class="kpi-label">Sem Movimento</div><div class="kpi-value" id="kpi-sem">—</div><div class="kpi-sub" id="kpi-sem-pct">—</div></div>
+    <div class="kpi-card kpi-teal"><div class="kpi-label">Simples Nacional</div><div class="kpi-value" id="kpi-sn">—</div><div class="kpi-sub" id="kpi-sn-pct">—</div></div>
+    <div class="kpi-card kpi-orange"><div class="kpi-label">Lucro Presumido</div><div class="kpi-value" id="kpi-lp">—</div><div class="kpi-sub" id="kpi-lp-pct">—</div></div>
+    <div class="kpi-card kpi-purple"><div class="kpi-label">A Definir</div><div class="kpi-value" id="kpi-ad">—</div><div class="kpi-sub">Sem responsável</div></div>
+  </div>
+  <div class="charts-row charts-3">
+    <div class="chart-card"><h3>📋 Por Regime Tributário</h3><div class="chart-canvas-wrap"><canvas id="chartRegime"></canvas></div></div>
+    <div class="chart-card"><h3>✅ Movimento por Responsável</h3><div class="chart-canvas-wrap"><canvas id="chartMovResp"></canvas></div></div>
+    <div class="chart-card"><h3>🗺️ Empresas por Estado (UF)</h3><div class="chart-canvas-wrap"><canvas id="chartUF"></canvas></div></div>
+  </div>
+  <div class="charts-row charts-2">
+    <div class="chart-card"><h3>📦 Tipo de Empresa × Movimento</h3><div class="chart-canvas-wrap"><canvas id="chartTipoMov"></canvas></div></div>
+    <div class="chart-card" style="overflow-y:auto;max-height:310px"><h3>🏷️ Top 15 Grupos com Mais Empresas</h3><div id="top-grupos"></div></div>
+  </div>
+</div>
+
+<div id="tab-colaboradores" class="tab-content">
+  <div class="colab-grid" id="colab-cards"></div>
+  <div id="colab-detail"></div>
+</div>
+
+<div id="tab-empresas" class="tab-content">
+  <div class="table-card">
+    <div class="table-toolbar">
+      <input class="table-search" id="table-search" type="text" placeholder="🔍 Busca geral: nome, CNPJ, grupo, responsável..." oninput="currentPage=1;renderTable()">
+      <span class="table-count" id="table-count"></span>
+      <button class="col-filter-clear" id="btn-clear-col" onclick="clearColFilters()" style="display:none">✕ Limpar filtros de coluna</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr class="th-labels">
+            <th onclick="sortTable('Nº')" data-key="Nº"><span>Nº</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('RAZÃO SOCIAL')" data-key="RAZÃO SOCIAL"><span>Razão Social</span><span class="sort-icon">↕</span></th>
+            <th><span>CNPJ</span></th>
+            <th onclick="sortTable('GRUPO')" data-key="GRUPO"><span>Grupo</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('MATRIZ_FILIAL')" data-key="MATRIZ_FILIAL"><span>Matriz/Filial</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('UF')" data-key="UF"><span>UF</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('RESPONSAVEL')" data-key="RESPONSAVEL"><span>Responsável</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('ASSISTENTE')" data-key="ASSISTENTE"><span>Assistente</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('TIPO')" data-key="TIPO"><span>Tipo</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('Regime')" data-key="Regime"><span>Regime</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('MOVIMENTO')" data-key="MOVIMENTO"><span>Movimento</span><span class="sort-icon">↕</span></th>
+          </tr>
+          <tr class="th-filters">
+            <th><input class="col-filter" id="cf-nr"   placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-rs"   placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-cnpj" placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-gr"   placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-mf"   placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-uf"   placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-resp" placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-asst" placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-tipo" placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-reg"  placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-mov"  placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+</main>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const SHEET_ID   = "15X3YoFBzcKHozmWDBHi5-27EPY2bC6IQw6zC07ZQInY";
+const SHEET_NAME = "Carteira";
+const HEADER_ROW = 4; // linha dos cabeçalhos na planilha (1-indexed)
+
+// Mapeamento: nome da coluna na planilha → chave usada no JS
+const COL_MAP = {
+  "Nº":           "Nº",
+  "RAZÃO SOCIAL": "RAZÃO SOCIAL",
+  "CNPJ":         "CNPJ",
+  "GRUPO":        "GRUPO",
+  "MATRIZ/FILIAL":"MATRIZ_FILIAL",
+  "UF":           "UF",
+  "RESPONSÁVEL":  "RESPONSAVEL",
+  "ASSISTENTE":   "ASSISTENTE",
+  "TIPO":         "TIPO",
+  "REGIME":       "Regime",
+  "MOVIMENTO":    "MOVIMENTO",
+};
+
+// ─── Estado global ──────────────────────────────────────────────────────────
+let ALL_DATA     = [];
+let filteredData = [];
+let currentPage  = 1;
+const PAGE_SIZE  = 50;
+let sortKey      = "Nº";
+let sortAsc      = true;
+let selectedColab = null;
+const charts     = {};
+
+const COLAB_COLORS = {
+  "THARCISIO":        "#1B3A6B",
+  "HELLEN":           "#E63946",
+  "PEDRO NASCIMENTO": "#2DC653",
+  "PEDRO SANTOS":     "#F4A261",
+  "ANDRE":            "#7B2D8B",
+  "RAQUEL SANTOS":    "#00B4D8",
+  "GUSTAVO AMARAL":   "#E6820A",
+  "ENZO MARCEL":      "#9B5DE5",
+};
+
+const REGIME_COLORS = {
+  "SIMPLES NACIONAL":  "#2DC653",
+  "SIMPLES NACIONAL*": "#52c47a",
+  "LUCRO PRESUMIDO":   "#00B4D8",
+  "LUCRO REAL":        "#F4A261",
+  "ASSOCIACAO":        "#E63946",
+  "SCP":               "#7B2D8B",
+  "MEI":               "#F4A261",
+};
+
+// ─── Busca dados do Google Sheets via CSV público ───────────────────────────
+async function fetchSheetData() {
+  const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTdOg14S0AyTUo9sSzvLv3D8gQsM99CkyEHe1QNAUo-0q5zPUi-IlwvNG7_WTHcJHlC904_PQE6pn9f/pub?gid=803174641&single=true&output=csv";
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const text = await resp.text();
+  return parseCSV(text);
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  // Encontrar a linha de cabeçalho (procura pela linha que contém "RAZÃO SOCIAL" ou "RAZAO SOCIAL")
+  let headerIdx = -1;
+  let headers = [];
+  for (let i = 0; i < Math.min(lines.length, 8); i++) {
+    const cols = parseLine(lines[i]);
+    const upper = cols.map(c => c.trim().toUpperCase());
+    if (upper.some(c => c.includes("RAZ") && c.includes("SOCIAL"))) {
+      headerIdx = i;
+      headers = cols.map(c => c.trim().toUpperCase().replace(/[""]/g, ""));
+      break;
+    }
+  }
+  if (headerIdx === -1) return [];
+
+  // Mapear índices de colunas
+  const colIdx = {};
+  for (const [sheetCol, jsKey] of Object.entries(COL_MAP)) {
+    const idx = headers.findIndex(h => h === sheetCol.toUpperCase().trim());
+    if (idx !== -1) colIdx[jsKey] = idx;
+  }
+
+  const records = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const cols = parseLine(lines[i]);
+    if (cols.every(c => !c.trim())) continue;
+
+    const rec = {};
+    for (const [jsKey, idx] of Object.entries(colIdx)) {
+      rec[jsKey] = cols[idx] ? cols[idx].trim().replace(/^"|"$/g, "") : "";
+    }
+
+    // Ignorar linha se não tiver razão social
+    if (!rec["RAZÃO SOCIAL"]) continue;
+
+    // Normalizar Nº para número
+    if (rec["Nº"]) {
+      const n = parseInt(rec["Nº"], 10);
+      if (!isNaN(n)) rec["Nº"] = n;
+    }
+
+    // Inferir MATRIZ/FILIAL pelo CNPJ se vazio
+    if (!rec["MATRIZ_FILIAL"] && rec["CNPJ"]) {
+      rec["MATRIZ_FILIAL"] = rec["CNPJ"].includes("/0001-") ? "MATRIZ" : "FILIAL";
+    }
+
+    records.push(rec);
+  }
+  return records;
+}
+
+function parseLine(line) {
+  const result = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur); cur = ""; }
+    else { cur += ch; }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    ALL_DATA = await fetchSheetData();
+    if (!ALL_DATA.length) throw new Error("Nenhum dado encontrado na planilha.");
+    document.getElementById("header-total").textContent = ALL_DATA.length;
+    document.getElementById("last-updated-txt").textContent = "Atualizado: " + new Date().toLocaleString("pt-BR");
+    populateSelects();
+    applyFilters();
+    renderColabCards();
+  } catch(e) {
+    const banner = document.getElementById("error-banner");
+    banner.style.display = "block";
+    banner.textContent = "⚠️ Erro ao carregar dados: " + e.message + " — Verifique se a planilha está compartilhada como pública.";
+  } finally {
+    setTimeout(() => {
+      const ls = document.getElementById("loading-screen");
+      ls.classList.add("hidden");
+      setTimeout(() => ls.remove(), 600);
+    }, 1800);
+  }
+});
+
+function populateSelects() {
+  const fields = {
+    "f-responsavel": "RESPONSAVEL",
+    "f-assistente":  "ASSISTENTE",
+    "f-regime":      "Regime",
+    "f-uf":          "UF",
+    "f-tipo":        "TIPO",
+  };
+  for (const [id, key] of Object.entries(fields)) {
+    const sel = document.getElementById(id);
+    const vals = [...new Set(ALL_DATA.map(r => r[key]).filter(Boolean))].sort();
+    vals.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+// ─── Filtros ────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const resp = document.getElementById("f-responsavel").value;
+  const asst = document.getElementById("f-assistente").value;
+  const reg  = document.getElementById("f-regime").value;
+  const mov  = document.getElementById("f-movimento").value;
+  const uf   = document.getElementById("f-uf").value;
+  const tipo = document.getElementById("f-tipo").value;
+
+  filteredData = ALL_DATA.filter(r =>
+    (!resp || r.RESPONSAVEL === resp) &&
+    (!asst || r.ASSISTENTE === asst) &&
+    (!reg  || r.Regime === reg) &&
+    (!mov  || String(r.MOVIMENTO).toUpperCase() === mov) &&
+    (!uf   || r.UF === uf) &&
+    (!tipo || r.TIPO === tipo)
+  );
+
+  currentPage = 1;
+  updateKPIs();
+  updateCharts();
+  renderTable();
+  renderColabCards();
+  document.getElementById("count-display").textContent = filteredData.length;
+}
+
+function resetFilters() {
+  ["f-responsavel","f-assistente","f-regime","f-movimento","f-uf","f-tipo"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  applyFilters();
+}
+
+// ─── KPIs ───────────────────────────────────────────────────────────────────
+function updateKPIs() {
+  const total = filteredData.length;
+  const com   = filteredData.filter(r => String(r.MOVIMENTO).toUpperCase() === "SIM").length;
+  const sem   = total - com;
+  const sn    = filteredData.filter(r => r.Regime && r.Regime.toUpperCase().startsWith("SIMPLES")).length;
+  const lp    = filteredData.filter(r => r.Regime && r.Regime.toUpperCase().includes("PRESUMIDO")).length;
+  const ad    = filteredData.filter(r => !r.RESPONSAVEL).length;
+
+  document.getElementById("kpi-total").textContent = total;
+  document.getElementById("kpi-com").textContent   = com;
+  document.getElementById("kpi-sem").textContent   = sem;
+  document.getElementById("kpi-sn").textContent    = sn;
+  document.getElementById("kpi-lp").textContent    = lp;
+  document.getElementById("kpi-ad").textContent    = ad;
+
+  document.getElementById("kpi-com-pct").textContent = total ? (com/total*100).toFixed(1)+"% do total" : "—";
+  document.getElementById("kpi-sem-pct").textContent = total ? (sem/total*100).toFixed(1)+"% do total" : "—";
+  document.getElementById("kpi-sn-pct").textContent  = total ? (sn/total*100).toFixed(1)+"% do total"  : "—";
+  document.getElementById("kpi-lp-pct").textContent  = total ? (lp/total*100).toFixed(1)+"% do total"  : "—";
+}
+
+// ─── Gráficos ────────────────────────────────────────────────────────────────
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function updateCharts() {
+  chartRegime(); chartMovResp(); chartUF(); chartTipoMov(); renderTopGrupos();
+}
+
+function chartRegime() {
+  destroyChart("regime");
+  const counts = {};
+  filteredData.forEach(r => { const k = r.Regime || "N/I"; counts[k] = (counts[k]||0)+1; });
+  const labels = Object.keys(counts).sort((a,b) => counts[b]-counts[a]);
+  charts["regime"] = new Chart(document.getElementById("chartRegime"), {
+    type: "doughnut",
+    data: { labels, datasets: [{ data: labels.map(l=>counts[l]), backgroundColor: labels.map(l=>REGIME_COLORS[l]||"#adb5bd"), borderWidth:2 }] },
+    options: { plugins:{ legend:{ position:"right", labels:{ font:{size:11}, boxWidth:14 } } }, cutout:"60%", maintainAspectRatio:false }
+  });
+}
+
+function chartMovResp() {
+  destroyChart("movresp");
+  const resps = [...new Set(filteredData.map(r=>r.RESPONSAVEL).filter(Boolean))].sort();
+  charts["movresp"] = new Chart(document.getElementById("chartMovResp"), {
+    type: "bar",
+    data: {
+      labels: resps,
+      datasets: [
+        { label:"Com Movimento", data: resps.map(r=>filteredData.filter(d=>d.RESPONSAVEL===r&&String(d.MOVIMENTO).toUpperCase()==="SIM").length), backgroundColor:"#2DC653" },
+        { label:"Sem Movimento", data: resps.map(r=>filteredData.filter(d=>d.RESPONSAVEL===r&&String(d.MOVIMENTO).toUpperCase()!=="SIM").length), backgroundColor:"#E63946" },
+      ]
+    },
+    options: { plugins:{ legend:{ position:"top", labels:{ font:{size:11} } } }, scales:{ x:{ stacked:true }, y:{ stacked:true } }, maintainAspectRatio:false }
+  });
+}
+
+function chartUF() {
+  destroyChart("uf");
+  const counts = {};
+  filteredData.forEach(r => { const k=r.UF||"N/I"; counts[k]=(counts[k]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  charts["uf"] = new Chart(document.getElementById("chartUF"), {
+    type:"bar",
+    data: { labels: sorted.map(e=>e[0]), datasets:[{ data:sorted.map(e=>e[1]), backgroundColor:"#4A90D9", borderRadius:4 }] },
+    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } }, maintainAspectRatio:false }
+  });
+}
+
+function chartTipoMov() {
+  destroyChart("tipomov");
+  const tipos = [...new Set(filteredData.map(r=>r.TIPO).filter(Boolean))].sort();
+  charts["tipomov"] = new Chart(document.getElementById("chartTipoMov"), {
+    type:"bar",
+    data: {
+      labels: tipos,
+      datasets: [
+        { label:"Com Movimento", data:tipos.map(t=>filteredData.filter(d=>d.TIPO===t&&String(d.MOVIMENTO).toUpperCase()==="SIM").length), backgroundColor:"#2DC653", borderRadius:4 },
+        { label:"Sem Movimento", data:tipos.map(t=>filteredData.filter(d=>d.TIPO===t&&String(d.MOVIMENTO).toUpperCase()!=="SIM").length), backgroundColor:"#E63946", borderRadius:4 },
+      ]
+    },
+    options: { plugins:{ legend:{ position:"top", labels:{ font:{size:11} } } }, scales:{ x:{ stacked:true }, y:{ stacked:true } }, maintainAspectRatio:false }
+  });
+}
+
+function renderTopGrupos() {
+  const counts = {};
+  filteredData.forEach(r => { const k=r["GRUPO"]||"N/I"; counts[k]=(counts[k]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  document.getElementById("top-grupos").innerHTML = sorted.map(([nome,qtd],i) =>
+    `<div class="grupo-item"><div class="grupo-rank">${i+1}</div><div class="grupo-name" title="${nome}">${nome}</div><div class="grupo-count">${qtd}</div></div>`
+  ).join("");
+}
+
+// ─── Tabela ──────────────────────────────────────────────────────────────────
+function sortTable(key) {
+  if (sortKey===key) { sortAsc=!sortAsc; } else { sortKey=key; sortAsc=true; }
+  document.querySelectorAll("thead tr.th-labels th").forEach(th => th.classList.toggle("sorted", th.dataset.key===key));
+  currentPage=1; renderTable();
+}
+
+function regimeBadge(v) {
+  if (!v) return '<span class="badge badge-sn">N/I</span>';
+  const u=v.toUpperCase();
+  if (u.startsWith("SIMPLES")) return `<span class="badge badge-sn">${v}</span>`;
+  if (u.includes("PRESUMIDO")) return `<span class="badge badge-lp">${v}</span>`;
+  if (u.includes("REAL"))      return `<span class="badge badge-lr">${v}</span>`;
+  if (u==="SCP")               return `<span class="badge badge-scp">${v}</span>`;
+  if (u==="ASSOCIACAO")        return `<span class="badge badge-assoc">${v}</span>`;
+  if (u==="MEI")               return `<span class="badge badge-mei">${v}</span>`;
+  return `<span class="badge badge-sn">${v}</span>`;
+}
+
+function movBadge(v) {
+  return String(v||"").toUpperCase()==="SIM"
+    ? '<span class="badge badge-sim">SIM</span>'
+    : '<span class="badge badge-nao">NÃO</span>';
+}
+
+function renderTable() {
+  const search = (document.getElementById("table-search").value||"").toLowerCase();
+  const cf = {
+    nr:   (document.getElementById("cf-nr").value||"").toLowerCase(),
+    rs:   (document.getElementById("cf-rs").value||"").toLowerCase(),
+    cnpj: (document.getElementById("cf-cnpj").value||"").toLowerCase(),
+    gr:   (document.getElementById("cf-gr").value||"").toLowerCase(),
+    mf:   (document.getElementById("cf-mf").value||"").toLowerCase(),
+    uf:   (document.getElementById("cf-uf").value||"").toLowerCase(),
+    resp: (document.getElementById("cf-resp").value||"").toLowerCase(),
+    asst: (document.getElementById("cf-asst").value||"").toLowerCase(),
+    tipo: (document.getElementById("cf-tipo").value||"").toLowerCase(),
+    reg:  (document.getElementById("cf-reg").value||"").toLowerCase(),
+    mov:  (document.getElementById("cf-mov").value||"").toLowerCase(),
+  };
+  const hasColFilter = Object.values(cf).some(v=>v);
+  document.getElementById("btn-clear-col").style.display = hasColFilter?"":"none";
+
+  let rows = filteredData.filter(r => {
+    if (search && !Object.values(r).join(" ").toLowerCase().includes(search)) return false;
+    if (cf.nr   && !String(r["Nº"]||"").toLowerCase().includes(cf.nr))   return false;
+    if (cf.rs   && !String(r["RAZÃO SOCIAL"]||"").toLowerCase().includes(cf.rs)) return false;
+    if (cf.cnpj && !String(r["CNPJ"]||"").toLowerCase().includes(cf.cnpj)) return false;
+    if (cf.gr   && !String(r["GRUPO"]||"").toLowerCase().includes(cf.gr)) return false;
+    if (cf.mf   && !String(r["MATRIZ_FILIAL"]||"").toLowerCase().includes(cf.mf)) return false;
+    if (cf.uf   && !String(r["UF"]||"").toLowerCase().includes(cf.uf))   return false;
+    if (cf.resp && !String(r["RESPONSAVEL"]||"").toLowerCase().includes(cf.resp)) return false;
+    if (cf.asst && !String(r["ASSISTENTE"]||"").toLowerCase().includes(cf.asst)) return false;
+    if (cf.tipo && !String(r["TIPO"]||"").toLowerCase().includes(cf.tipo)) return false;
+    if (cf.reg  && !String(r["Regime"]||"").toLowerCase().includes(cf.reg)) return false;
+    if (cf.mov  && !String(r["MOVIMENTO"]||"").toLowerCase().includes(cf.mov)) return false;
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    let va=a[sortKey]??"", vb=b[sortKey]??"";
+    if (typeof va==="number"&&typeof vb==="number") return sortAsc?va-vb:vb-va;
+    va=String(va).toLowerCase(); vb=String(vb).toLowerCase();
+    return sortAsc ? va.localeCompare(vb,"pt") : vb.localeCompare(va,"pt");
+  });
+
+  const total  = rows.length;
+  const pages  = Math.max(1, Math.ceil(total/PAGE_SIZE));
+  currentPage  = Math.min(currentPage, pages);
+  const start  = (currentPage-1)*PAGE_SIZE;
+  const pageRows = rows.slice(start, start+PAGE_SIZE);
+
+  document.getElementById("table-body").innerHTML = pageRows.map(r => `
+    <tr>
+      <td>${r["Nº"]??""}</td>
+      <td style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r["RAZÃO SOCIAL"]??""}"> ${r["RAZÃO SOCIAL"]??""}</td>
+      <td style="white-space:nowrap">${r["CNPJ"]??""}</td>
+      <td>${r["GRUPO"]??""}</td>
+      <td>${r["MATRIZ_FILIAL"]??""}</td>
+      <td>${r["UF"]??""}</td>
+      <td>${r["RESPONSAVEL"]??""}</td>
+      <td>${r["ASSISTENTE"]??""}</td>
+      <td>${r["TIPO"]??""}</td>
+      <td>${regimeBadge(r["Regime"])}</td>
+      <td>${movBadge(r["MOVIMENTO"])}</td>
+    </tr>`).join("");
+
+  document.getElementById("table-count").textContent =
+    `${start+1}–${Math.min(start+PAGE_SIZE,total)} de ${total} registros`;
+  renderPagination(pages);
+}
+
+function clearColFilters() {
+  ["cf-nr","cf-rs","cf-cnpj","cf-gr","cf-mf","cf-uf","cf-resp","cf-asst","cf-tipo","cf-reg","cf-mov"]
+    .forEach(id => document.getElementById(id).value="");
+  currentPage=1; renderTable();
+}
+
+function renderPagination(pages) {
+  const pg = document.getElementById("pagination");
+  if (pages<=1) { pg.innerHTML=""; return; }
+  let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?"disabled":""}>‹</button>`;
+  const delta=2;
+  let s=Math.max(1,currentPage-delta), e=Math.min(pages,currentPage+delta);
+  if(s>1){ html+=`<button class="page-btn" onclick="goPage(1)">1</button>`; if(s>2) html+=`<span class="page-info">…</span>`; }
+  for(let p=s;p<=e;p++) html+=`<button class="page-btn${p===currentPage?" active":""}" onclick="goPage(${p})">${p}</button>`;
+  if(e<pages){ if(e<pages-1) html+=`<span class="page-info">…</span>`; html+=`<button class="page-btn" onclick="goPage(${pages})">${pages}</button>`; }
+  html+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?"disabled":""}>›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) {
+  currentPage=p; renderTable();
+  document.querySelector(".table-card").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+// ─── Colaboradores ───────────────────────────────────────────────────────────
+function renderColabCards() {
+  const colabs = [...new Set(filteredData.map(r=>r.RESPONSAVEL).filter(Boolean))].sort();
+  document.getElementById("colab-cards").innerHTML = colabs.map(nome => {
+    const emps=filteredData.filter(r=>r.RESPONSAVEL===nome);
+    const total=emps.length, com=emps.filter(r=>String(r.MOVIMENTO).toUpperCase()==="SIM").length;
+    const sem=total-com, pct=total?Math.round(com/total*100):0;
+    const color=COLAB_COLORS[nome]||"#2E5FA3";
+    return `<div class="colab-card ${selectedColab===nome?"selected":""}" style="border-top-color:${color}" onclick="selectColab('${nome}')">
+      <div class="colab-name">${nome}</div>
+      <div class="colab-total" style="color:${color}">${total}</div>
+      <div style="font-size:10px;color:var(--text-light)">empresas</div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;background:${color}"></div></div>
+      <div class="colab-stats">
+        <div class="colab-stat" style="background:#C8F7DC"><div class="stat-n" style="color:#1A7A3E">${com}</div><div class="stat-l">COM MOV.</div></div>
+        <div class="colab-stat" style="background:#FDDCDC"><div class="stat-n" style="color:#A31515">${sem}</div><div class="stat-l">SEM MOV.</div></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function selectColab(nome) {
+  selectedColab = selectedColab===nome ? null : nome;
+  renderColabCards();
+  const detail = document.getElementById("colab-detail");
+  if (!selectedColab) { detail.innerHTML=""; return; }
+  const emps=filteredData.filter(r=>r.RESPONSAVEL===nome);
+  const color=COLAB_COLORS[nome]||"#2E5FA3";
+  detail.innerHTML = `<div class="chart-card" style="margin-top:14px">
+    <h3 style="color:${color}">${nome} — ${emps.length} Empresas</h3>
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+      <thead><tr style="background:${color};color:#fff">
+        <th style="padding:8px">Nº</th><th style="padding:8px">Razão Social</th><th style="padding:8px">CNPJ</th>
+        <th style="padding:8px">Grupo</th><th style="padding:8px">Assistente</th><th style="padding:8px">Regime</th><th style="padding:8px">Movimento</th>
+      </tr></thead><tbody>
+      ${emps.sort((a,b)=>String(a["RAZÃO SOCIAL"]).localeCompare(String(b["RAZÃO SOCIAL"]),"pt"))
+        .map((r,i)=>`<tr style="background:${i%2===0?"#fff":"#F8FAFD"}">
+          <td style="padding:7px 8px">${r["Nº"]??""}</td>
+          <td style="padding:7px 8px">${r["RAZÃO SOCIAL"]??""}</td>
+          <td style="padding:7px 8px;white-space:nowrap">${r["CNPJ"]??""}</td>
+          <td style="padding:7px 8px">${r["GRUPO"]??""}</td>
+          <td style="padding:7px 8px">${r["ASSISTENTE"]??""}</td>
+          <td style="padding:7px 8px">${regimeBadge(r["Regime"])}</td>
+          <td style="padding:7px 8px">${movBadge(r["MOVIMENTO"])}</td>
+        </tr>`).join("")}
+      </tbody></table></div></div>`;
+}
+
+// ─── Abas ─────────────────────────────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll(".tab-content").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  btn.classList.add("active");
+}
+</script>
+</body>
+</html>
