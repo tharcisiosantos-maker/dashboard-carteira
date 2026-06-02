@@ -277,7 +277,7 @@ const REGIME_COLORS = {
 
 // ─── Busca dados do Google Sheets via CSV público ───────────────────────────
 async function fetchSheetData() {
-  const url = `https://docs.google.com/spreadsheets/d/$15X3YoFBzcKHozmWDBHi5-27EPY2bC6IQw6zC07ZQInY/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}&gid=803174641`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const text = await resp.text();
