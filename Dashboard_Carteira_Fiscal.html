@@ -88,16 +88,30 @@
   .page-btn.active{background:var(--med-blue);color:#fff;border-color:var(--med-blue)}
   .page-btn:disabled{opacity:.4;cursor:default}
   .page-info{font-size:12px;color:var(--text-light)}
-  .colab-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:20px}
-  .colab-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:4px solid transparent;cursor:pointer;transition:transform .2s,box-shadow .2s}
-  .colab-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
-  .colab-card.selected{box-shadow:0 0 0 3px var(--teal),0 8px 20px rgba(0,0,0,.12)}
-  .colab-name{font-size:12px;font-weight:700;color:var(--dark-blue);margin-bottom:8px}
-  .colab-total{font-size:26px;font-weight:800;margin-bottom:2px}
-  .colab-stats{display:flex;gap:7px;margin-top:9px}
-  .colab-stat{flex:1;text-align:center;padding:5px;border-radius:6px}
-  .stat-n{font-size:15px;font-weight:700}
-  .stat-l{font-size:10px;color:var(--text-light);font-weight:600}
+  /* ── Organograma ── */
+  .org-wrap{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;padding:8px 0 24px}
+  .org-resp-block{display:flex;flex-direction:column;align-items:center}
+  .org-resp-node{background:#fff;border-radius:14px;padding:16px 20px;box-shadow:0 3px 12px rgba(0,0,0,.1);border-top:5px solid transparent;cursor:pointer;min-width:175px;text-align:center;transition:transform .2s,box-shadow .2s;position:relative;z-index:1}
+  .org-resp-node:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(0,0,0,.15)}
+  .org-resp-node.active{box-shadow:0 0 0 3px var(--teal),0 8px 22px rgba(0,0,0,.15)}
+  .org-resp-name{font-size:11px;font-weight:800;color:var(--dark-blue);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+  .org-resp-total{font-size:28px;font-weight:900;line-height:1}
+  .org-resp-sub{font-size:10px;color:var(--text-light);margin-top:2px}
+  .org-resp-badges{display:flex;gap:5px;justify-content:center;margin-top:8px}
+  .org-badge-com{background:#C8F7DC;color:#1A7A3E;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .org-badge-sem{background:#FDDCDC;color:#A31515;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .org-connector-v{width:2px;height:18px;background:var(--border);margin:0 auto}
+  .org-assistentes{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;position:relative;padding-top:0}
+  .org-assistentes::before{content:'';position:absolute;top:0;left:60px;right:60px;height:2px;background:var(--border)}
+  .org-asst-wrap{display:flex;flex-direction:column;align-items:center}
+  .org-asst-line{width:2px;height:14px;background:var(--border);margin:0 auto}
+  .org-asst-node{background:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-left:4px solid transparent;cursor:pointer;min-width:145px;text-align:center;transition:transform .2s,box-shadow .2s}
+  .org-asst-node:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+  .org-asst-node.active{box-shadow:0 0 0 3px var(--teal),0 6px 16px rgba(0,0,0,.12)}
+  .org-asst-name{font-size:10px;font-weight:700;color:var(--dark-blue);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+  .org-asst-total{font-size:20px;font-weight:800;line-height:1}
+  .org-asst-sub{font-size:10px;color:var(--text-light);margin-top:1px}
+  .org-asst-badges{display:flex;gap:4px;justify-content:center;margin-top:6px}
   .progress-wrap{height:5px;background:var(--border);border-radius:3px;margin-top:5px}
   .progress-bar{height:100%;border-radius:3px;transition:width .5s ease}
   .grupo-item{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)}
@@ -174,7 +188,10 @@
 </div>
 
 <div id="tab-colaboradores" class="tab-content">
-  <div class="colab-grid" id="colab-cards"></div>
+  <div class="chart-card" style="margin-bottom:18px">
+    <h3>🏗️ Estrutura da Equipe Fiscal</h3>
+    <div class="org-wrap" id="org-wrap"></div>
+  </div>
   <div id="colab-detail"></div>
 </div>
 
@@ -640,34 +657,82 @@ function goPage(p) {
 
 // ─── Colaboradores ───────────────────────────────────────────────────────────
 function renderColabCards() {
-  const colabs = [...new Set(filteredData.map(r=>r.RESPONSAVEL).filter(Boolean))].sort();
-  document.getElementById("colab-cards").innerHTML = colabs.map(nome => {
-    const emps=filteredData.filter(r=>r.RESPONSAVEL===nome);
-    const total=emps.length, com=emps.filter(r=>String(r.MOVIMENTO).toUpperCase()==="SIM").length;
-    const sem=total-com, pct=total?Math.round(com/total*100):0;
-    const color=COLAB_COLORS[nome]||"#2E5FA3";
-    return `<div class="colab-card ${selectedColab===nome?"selected":""}" style="border-top-color:${color}" onclick="selectColab('${nome}')">
-      <div class="colab-name">${nome}</div>
-      <div class="colab-total" style="color:${color}">${total}</div>
-      <div style="font-size:10px;color:var(--text-light)">empresas</div>
-      <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;background:${color}"></div></div>
-      <div class="colab-stats">
-        <div class="colab-stat" style="background:#C8F7DC"><div class="stat-n" style="color:#1A7A3E">${com}</div><div class="stat-l">COM MOV.</div></div>
-        <div class="colab-stat" style="background:#FDDCDC"><div class="stat-n" style="color:#A31515">${sem}</div><div class="stat-l">SEM MOV.</div></div>
+  // Monta estrutura: resp -> assistentes
+  const resps = [...new Set(filteredData.map(r=>r.RESPONSAVEL).filter(Boolean))].sort();
+
+  const orgWrap = document.getElementById("org-wrap");
+  orgWrap.innerHTML = resps.map(resp => {
+    const empsResp = filteredData.filter(r=>r.RESPONSAVEL===resp);
+    const totalResp = empsResp.length;
+    const comResp   = empsResp.filter(r=>String(r.MOVIMENTO).toUpperCase()==="SIM").length;
+    const semResp   = totalResp - comResp;
+    const color     = COLAB_COLORS[resp]||"#2E5FA3";
+    const isActive  = selectedColab===resp;
+
+    // Assistentes vinculados a este responsável
+    const assts = [...new Set(empsResp.map(r=>r.ASSISTENTE).filter(Boolean))].sort();
+
+    const asstHTML = assts.length ? `
+      <div class="org-connector-v"></div>
+      <div class="org-assistentes">
+        ${assts.map(asst => {
+          const empsAsst = empsResp.filter(r=>r.ASSISTENTE===asst);
+          const totalA   = empsAsst.length;
+          const comA     = empsAsst.filter(r=>String(r.MOVIMENTO).toUpperCase()==="SIM").length;
+          const semA     = totalA - comA;
+          const isActiveA = selectedColab===asst;
+          return `<div class="org-asst-wrap">
+            <div class="org-asst-line"></div>
+            <div class="org-asst-node ${isActiveA?"active":""}" style="border-left-color:${color}" onclick="selectColab('${asst}','asst','${resp}')">
+              <div class="org-asst-name">${asst}</div>
+              <div class="org-asst-total" style="color:${color}">${totalA}</div>
+              <div class="org-asst-sub">empresas</div>
+              <div class="org-asst-badges">
+                <span class="org-badge-com">${comA} ✓</span>
+                <span class="org-badge-sem">${semA} ✗</span>
+              </div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>` : "";
+
+    return `<div class="org-resp-block">
+      <div class="org-resp-node ${isActive?"active":""}" style="border-top-color:${color}" onclick="selectColab('${resp}','resp','')">
+        <div class="org-resp-name">${resp}</div>
+        <div class="org-resp-total" style="color:${color}">${totalResp}</div>
+        <div class="org-resp-sub">empresas</div>
+        <div class="org-resp-badges">
+          <span class="org-badge-com">${comResp} ✓</span>
+          <span class="org-badge-sem">${semResp} ✗</span>
+        </div>
       </div>
+      ${asstHTML}
     </div>`;
   }).join("");
 }
 
-function selectColab(nome) {
+function selectColab(nome, tipo, resp) {
+  // toggle: se clicar no mesmo, fecha
   selectedColab = selectedColab===nome ? null : nome;
   renderColabCards();
   const detail = document.getElementById("colab-detail");
-  if (!selectedColab) { detail.innerHTML=""; return; }
-  const emps=filteredData.filter(r=>r.RESPONSAVEL===nome);
-  const color=COLAB_COLORS[nome]||"#2E5FA3";
+  if (!selectedColab) { detail.innerHTML=""; detail.scrollIntoView&&detail.scrollIntoView({behavior:"smooth",block:"nearest"}); return; }
+
+  // Define quais empresas mostrar e cor
+  let emps, color, titulo;
+  if (tipo==="asst") {
+    const respData = filteredData.filter(r=>r.RESPONSAVEL===resp);
+    emps   = respData.filter(r=>r.ASSISTENTE===nome);
+    color  = COLAB_COLORS[resp]||"#2E5FA3";
+    titulo = `${nome} (Assistente de ${resp}) — ${emps.length} Empresas`;
+  } else {
+    emps   = filteredData.filter(r=>r.RESPONSAVEL===nome);
+    color  = COLAB_COLORS[nome]||"#2E5FA3";
+    titulo = `${nome} — ${emps.length} Empresas`;
+  }
+
   detail.innerHTML = `<div class="chart-card" style="margin-top:14px">
-    <h3 style="color:${color}">${nome} — ${emps.length} Empresas</h3>
+    <h3 style="color:${color}">${titulo}</h3>
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
       <thead><tr style="background:${color};color:#fff">
         <th style="padding:8px">Nº</th><th style="padding:8px">Razão Social</th><th style="padding:8px">CNPJ</th>
@@ -684,6 +749,7 @@ function selectColab(nome) {
           <td style="padding:7px 8px">${movBadge(r["MOVIMENTO"])}</td>
         </tr>`).join("")}
       </tbody></table></div></div>`;
+  setTimeout(()=>detail.scrollIntoView({behavior:"smooth",block:"start"}),100);
 }
 
 // ─── Abas ─────────────────────────────────────────────────────────────────────
