@@ -325,7 +325,13 @@ function parseCSV(text) {
   // Mapear índices de colunas
   const colIdx = {};
   for (const [sheetCol, jsKey] of Object.entries(COL_MAP)) {
-    const idx = headers.findIndex(h => h === sheetCol.toUpperCase().trim());
+    // Tenta match exato primeiro, depois match parcial (para lidar com encoding de caracteres especiais)
+    let idx = headers.findIndex(h => h === sheetCol.toUpperCase().trim());
+    if (idx === -1) {
+      // Remove acentos e caracteres especiais para comparação
+      const norm = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9 ]/g,"").trim();
+      idx = headers.findIndex(h => norm(h) === norm(sheetCol.toUpperCase()));
+    }
     if (idx !== -1) colIdx[jsKey] = idx;
   }
 
