@@ -217,6 +217,7 @@
             <th onclick="sortTable('TIPO')" data-key="TIPO"><span>Tipo</span><span class="sort-icon">↕</span></th>
             <th onclick="sortTable('Regime')" data-key="Regime"><span>Regime</span><span class="sort-icon">↕</span></th>
             <th onclick="sortTable('MOVIMENTO')" data-key="MOVIMENTO"><span>Movimento</span><span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('COMPETENCIA')" data-key="COMPETENCIA"><span>1ª Competência</span><span class="sort-icon">↕</span></th>
           </tr>
           <tr class="th-filters">
             <th><input class="col-filter" id="cf-nr"   placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
@@ -230,6 +231,7 @@
             <th><input class="col-filter" id="cf-tipo" placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
             <th><input class="col-filter" id="cf-reg"  placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
             <th><input class="col-filter" id="cf-mov"  placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
+            <th><input class="col-filter" id="cf-comp" placeholder="Filtrar…" oninput="currentPage=1;renderTable()"></th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -259,6 +261,7 @@ const COL_MAP = {
   "TIPO":         "TIPO",
   "REGIME":       "Regime",
   "MOVIMENTO":    "MOVIMENTO",
+  "1ª COMPETÊNCIÁ":"COMPETENCIA",
 };
 
 // ─── Estado global ──────────────────────────────────────────────────────────
@@ -578,6 +581,7 @@ function renderTable() {
     tipo: (document.getElementById("cf-tipo").value||"").toLowerCase(),
     reg:  (document.getElementById("cf-reg").value||"").toLowerCase(),
     mov:  (document.getElementById("cf-mov").value||"").toLowerCase(),
+    comp: (document.getElementById("cf-comp").value||"").toLowerCase(),
   };
   const hasColFilter = Object.values(cf).some(v=>v);
   document.getElementById("btn-clear-col").style.display = hasColFilter?"":"none";
@@ -595,6 +599,7 @@ function renderTable() {
     if (cf.tipo && !String(r["TIPO"]||"").toLowerCase().includes(cf.tipo)) return false;
     if (cf.reg  && !String(r["Regime"]||"").toLowerCase().includes(cf.reg)) return false;
     if (cf.mov  && !String(r["MOVIMENTO"]||"").toLowerCase().includes(cf.mov)) return false;
+    if (cf.comp && !String(r["COMPETENCIA"]||"").toLowerCase().includes(cf.comp)) return false;
     return true;
   });
 
@@ -624,6 +629,7 @@ function renderTable() {
       <td>${r["TIPO"]??""}</td>
       <td>${regimeBadge(r["Regime"])}</td>
       <td>${movBadge(r["MOVIMENTO"])}</td>
+      <td style="white-space:nowrap">${r["COMPETENCIA"]??""}</td>
     </tr>`).join("");
 
   document.getElementById("table-count").textContent =
@@ -632,7 +638,7 @@ function renderTable() {
 }
 
 function clearColFilters() {
-  ["cf-nr","cf-rs","cf-cnpj","cf-gr","cf-mf","cf-uf","cf-resp","cf-asst","cf-tipo","cf-reg","cf-mov"]
+  ["cf-nr","cf-rs","cf-cnpj","cf-gr","cf-mf","cf-uf","cf-resp","cf-asst","cf-tipo","cf-reg","cf-mov","cf-comp"]
     .forEach(id => document.getElementById(id).value="");
   currentPage=1; renderTable();
 }
