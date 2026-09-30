@@ -174,7 +174,7 @@
     <div class="kpi-card kpi-red"><div class="kpi-label">Sem Movimento</div><div class="kpi-value" id="kpi-sem">—</div><div class="kpi-sub" id="kpi-sem-pct">—</div></div>
     <div class="kpi-card kpi-teal"><div class="kpi-label">Simples Nacional</div><div class="kpi-value" id="kpi-sn">—</div><div class="kpi-sub" id="kpi-sn-pct">—</div></div>
     <div class="kpi-card kpi-orange"><div class="kpi-label">Lucro Presumido</div><div class="kpi-value" id="kpi-lp">—</div><div class="kpi-sub" id="kpi-lp-pct">—</div></div>
-    <div class="kpi-card kpi-purple"><div class="kpi-label">A Definir</div><div class="kpi-value" id="kpi-ad">—</div><div class="kpi-sub">Sem responsável</div></div>
+    <div class="kpi-card kpi-purple"><div class="kpi-label">Lucro Real</div><div class="kpi-value" id="kpi-lr">—</div><div class="kpi-sub" id="kpi-lr-pct">—</div></div>
   </div>
   <div class="charts-row charts-3">
     <div class="chart-card"><h3>📋 Por Regime Tributário</h3><div class="chart-canvas-wrap"><canvas id="chartRegime"></canvas></div></div>
@@ -382,6 +382,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   try {
     ALL_DATA = await fetchSheetData();
     if (!ALL_DATA.length) throw new Error("Nenhum dado encontrado na planilha.");
+    // Normaliza o Regime (maiúsculas, sem espaços) para evitar duplicidade no gráfico/filtro por variação de digitação na planilha
+    ALL_DATA.forEach(r => { if (r.Regime) r.Regime = String(r.Regime).trim().toUpperCase(); });
     document.getElementById("header-total").textContent = ALL_DATA.length;
     document.getElementById("last-updated-txt").textContent = "Atualizado: " + new Date().toLocaleString("pt-BR");
     populateSelects();
@@ -459,19 +461,20 @@ function updateKPIs() {
   const sem   = total - com;
   const sn    = filteredData.filter(r => r.Regime && r.Regime.toUpperCase().startsWith("SIMPLES")).length;
   const lp    = filteredData.filter(r => r.Regime && r.Regime.toUpperCase().includes("PRESUMIDO")).length;
-  const ad    = filteredData.filter(r => !r.RESPONSAVEL).length;
+  const lr    = filteredData.filter(r => r.Regime && r.Regime.toUpperCase().includes("LUCRO REAL")).length;
 
   document.getElementById("kpi-total").textContent = total;
   document.getElementById("kpi-com").textContent   = com;
   document.getElementById("kpi-sem").textContent   = sem;
   document.getElementById("kpi-sn").textContent    = sn;
   document.getElementById("kpi-lp").textContent    = lp;
-  document.getElementById("kpi-ad").textContent    = ad;
+  document.getElementById("kpi-lr").textContent    = lr;
 
   document.getElementById("kpi-com-pct").textContent = total ? (com/total*100).toFixed(1)+"% do total" : "—";
   document.getElementById("kpi-sem-pct").textContent = total ? (sem/total*100).toFixed(1)+"% do total" : "—";
   document.getElementById("kpi-sn-pct").textContent  = total ? (sn/total*100).toFixed(1)+"% do total"  : "—";
   document.getElementById("kpi-lp-pct").textContent  = total ? (lp/total*100).toFixed(1)+"% do total"  : "—";
+  document.getElementById("kpi-lr-pct").textContent  = total ? (lr/total*100).toFixed(1)+"% do total"  : "—";
 }
 
 // ─── Gráficos ────────────────────────────────────────────────────────────────
